@@ -74,13 +74,19 @@ def get_n_questions_distractor(
     ).select(range(n_questions))
     to_return: list[Question_distractor] = []
     for q in ds:
+        different_sentences = [
+            Sentences(title=title, sentences=sentences)
+            for title, sentences in zip(
+                q["context"]["title"], q["context"]["sentences"], strict=False
+            )
+        ]
         question_object = Question_distractor(
             id=q["id"],
             question=q["question"],
             answer=q["answer"],
             level=q["level"],
             type=q["type"],
-            different_sentences=q["context"]["sentences"],
+            different_sentences=different_sentences,
         )
 
         to_return.append(question_object)
