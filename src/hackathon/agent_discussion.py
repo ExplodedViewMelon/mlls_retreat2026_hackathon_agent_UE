@@ -20,7 +20,7 @@ client = get_client()
 
 # get 1 question
 hotpotqa_dataset_simple = get_n_questions_distractor(n_questions=10, n_titles=2)
-dataset_row = hotpotqa_dataset_simple[3]  # 0 is impossible
+dataset_row = hotpotqa_dataset_simple[1]
 
 agents = []
 for sentences in dataset_row.different_sentences:
@@ -31,11 +31,12 @@ for sentences in dataset_row.different_sentences:
         model_client=client,
         system_message=(
             "You are an expert on a particular wikipedia subject. "
-            "You will find your relevant wikipedia material attached. "
+            "You will find the relevant wikipedia material attached. "
             "You will help a group of agents answer a question. "
-            "Each member of the group is an expert on different subjects. "
-            "You will have to combine your information to reach an answer. "
-            "You each have UNIQUE information and do NOT share the same attached article. "
+            "You are the ONLY agent with the attached information. "
+            "The other agents have a DIFFERENT article attached. "
+            "Therefore each member of the group is an expert on a different subject. "
+            "You will have to share information to reach an answer. "
             "You can trust the other agents. "
             "When your group has clearly reached a shared conclusion, write the word CONSENSUS. "
             f"\nAttached wikipedia article:\n\n{sentences.title}\n {sentences.sentences}"  # noqa
@@ -67,12 +68,24 @@ async def main() -> None:
     print()
 
     stream = group_chat.run_stream(task=TOPIC)
-    await Console(stream)
+    last_message = await Console(stream)
 
     print()
     print("=" * 60)
     print("Discussion ended.")
 
+    last_message_str = last_message.messages[-1].content  # type: ignore
+
+    summary_agent = AssistantAgent("summary_agent", client)
+    summarization = await summary_agent.run(
+        task=(
+            "Summarize the following answer as ultra compact keywords i.e. < 5 words. "
+            f"Question: {dataset_row.question}. "
+            f"Answer to summarize: {last_message_str} "
+        )
+    )
+
+    print("Predicted answer summary:", summarization.messages[-1].to_text())
     print("Question:", dataset_row.question)
     print("Ground truth:", dataset_row.answer)
 
