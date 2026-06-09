@@ -7,7 +7,7 @@ from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.ui import Console
 
 from hackathon.autogen_client import get_client
-from hackathon.hotpotqa import get_n_questions
+from hackathon.hotpotqa import get_n_questions_distractor
 
 
 def normalize_wikipedia_title(name: str) -> str:
@@ -19,12 +19,12 @@ def normalize_wikipedia_title(name: str) -> str:
 client = get_client()
 
 # get 1 question
-hotpotqa_dataset_simple = get_n_questions(n_questions=10, n_titles=2)
+hotpotqa_dataset_simple = get_n_questions_distractor(n_questions=10, n_titles=2)
 dataset_row = hotpotqa_dataset_simple[3]  # 0 is impossible
 
 agents = []
-for article in dataset_row.wikipedia_articles:
-    article_title_normalized = normalize_wikipedia_title(article.title)
+for sentences in dataset_row.different_sentences:
+    article_title_normalized = normalize_wikipedia_title(sentences.title)
 
     agent = AssistantAgent(
         name=f"expert_{article_title_normalized}",
@@ -38,7 +38,7 @@ for article in dataset_row.wikipedia_articles:
             "You each have UNIQUE information and do NOT share the same attached article. "
             "You can trust the other agents. "
             "When your group has clearly reached a shared conclusion, write the word CONSENSUS. "
-            f"\nAttached wikipedia article:\n\n{article.title}\n {article.content}"  # noqa
+            f"\nAttached wikipedia article:\n\n{sentences.title}\n {sentences.sentences}"  # noqa
         ),
     )
     agents.append(agent)
@@ -57,8 +57,8 @@ TOPIC = dataset_row.question
 async def main() -> None:
     print("Question:", dataset_row.question)
     print("Articles:")
-    for article in dataset_row.wikipedia_articles:
-        print(f"{article.title} ({article.url})")
+    for sentences in dataset_row.different_sentences:
+        print(f"{sentences.title}")
 
     print("=" * 60)
     print("ROUND-ROBIN DISCUSSION")
