@@ -1,5 +1,6 @@
 import asyncio
 import re
+from types import CoroutineType
 from typing import Any, Coroutine, Sequence, TypeVar
 
 import tqdm
@@ -9,6 +10,7 @@ from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.ui import Console
 from pydantic import BaseModel
+from tqdm.asyncio import tqdm as atqdm
 
 from hackathon.autogen_client import get_client
 from hackathon.hotpotqa import Question_distractor, get_n_questions_distractor
@@ -37,11 +39,19 @@ async def gather_custom_with_semaphore(
 ) -> list[T]:
     semaphore = asyncio.Semaphore(max_concurrency)
 
+    n_processes = len(processes)
+
     async def _run_with_semaphore(process: Coroutine[Any, Any, T]) -> T:
         async with semaphore:
             return await process
 
-    return list(await asyncio.gather(*(_run_with_semaphore(process) for process in processes)))
+    return list(
+        await atqdm.gather(
+            *(_run_with_semaphore(process) for process in processes),
+            desc="Running benchmark",
+            total=n_processes,
+        )
+    )
 
 
 class SingleRun(BaseModel):
