@@ -22,7 +22,8 @@ def normalize_wikipedia_title(name: str) -> str:
 
 class SingleRun(BaseModel):
     dataset_row: Question_distractor
-    messages: Sequence[BaseAgentEvent | BaseChatMessage]
+    conversation: str
+    messages_raw: Sequence[BaseAgentEvent | BaseChatMessage]
     answer_summary: str
 
 
@@ -71,7 +72,15 @@ async def process_question(
 
     messages = result.messages
 
-    last_message = messages[-1].content  # type: ignore
+    messages_str = ""
+    for message in messages:
+        agent = message.source
+        content = message.content  # type: ignore
+
+        messages_str += f"{agent}:\n"
+        messages_str += f"{content}\n\n"
+
+    # last_message = messages[-1].content  # type: ignore
 
     summary_agent = AssistantAgent("summary_agent", client)
     answer_summary_raw = await summary_agent.run(
