@@ -61,15 +61,15 @@ def get_n_questions_fullwiki(
 
 
 def get_n_questions_distractor(
-    n_titles: int = 2,
-    level: str = "hard",
-    type: Literal["bridge", "comparison"] = "bridge",
+    n_titles: int | None = None,
+    level: str | None = None,
+    type: Literal["bridge", "comparison"] | None = None,
 ) -> list[Question_distractor]:
     ds = load_dataset("hotpotqa/hotpot_qa", "distractor", split="train")
     ds = ds.filter(
-        lambda x: x["level"] == level
-        and x["type"] == type
-        and len(x["context"]["title"]) == n_titles
+        lambda x: (level is None or x["level"] == level)
+        and (type is None or x["type"] == type)
+        and (n_titles is None or len(x["context"]["title"]) == n_titles)
     )
     to_return: list[Question_distractor] = []
     for q in ds:
@@ -100,11 +100,6 @@ if __name__ == "__main__":
     # pprint.pprint(ds[0])
 
     # make object
-    questions = get_n_questions_distractor(n_titles=3)
+    questions = get_n_questions_distractor()
 
-    for question in questions:
-        total = 0
-        for sentences in question.different_sentences:
-            total += len(sentences.sentences)
-
-        print(total)
+    print(len(questions))
