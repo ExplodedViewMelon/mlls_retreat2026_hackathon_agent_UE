@@ -88,26 +88,31 @@ async def process_question(
 async def main() -> None:
     client = get_client()
 
-    # get 1 question
+    # get 1 data row
     hotpotqa_dataset_simple = get_n_questions_distractor(n_questions=10, n_titles=2)
     dataset_row = hotpotqa_dataset_simple[2]
 
-    run_results = await process_question(client, dataset_row, do_stream=True)
+    do_stream = False
 
+    # process
+    run_results = await process_question(client, dataset_row, do_stream=do_stream)
+
+    # display
     print("Question:", dataset_row.question)
     print("Articles:")
     for sentences in dataset_row.different_sentences:
         print(f"{sentences.title}")
 
-    print("=" * 60)
-    print("ROUND-ROBIN DISCUSSION")
-    print(f"Topic: {dataset_row.question}")
-    print("=" * 60)
-    print()
+    if do_stream:
+        print("=" * 60)
+        print("ROUND-ROBIN DISCUSSION")
+        print(f"Topic: {dataset_row.question}")
+        print("=" * 60)
+        print()
 
-    print()
-    print("=" * 60)
-    print("Discussion ended.")
+        print()
+        print("=" * 60)
+        print("Discussion ended.")
 
     print("Predicted answer summary:", run_results.answer_summary)
     print("Question:", dataset_row.question)
