@@ -1,6 +1,6 @@
 import asyncio
 import re
-from typing import Sequence
+from typing import Any, Coroutine, Sequence, TypeVar
 
 import tqdm
 from autogen_agentchat.agents import AssistantAgent
@@ -18,6 +18,25 @@ def normalize_wikipedia_title(name: str) -> str:
     title_normalized = re.sub(r"[^A-Za-z0-9_-]", "_", name.replace(" ", "_"))
     title_normalized = re.sub(r"^[^A-Za-z_]+", "_", title_normalized)
     return title_normalized
+
+
+T = TypeVar("T")
+
+
+async def gather_custom(processes: Sequence[Coroutine[Any, Any, T]]) -> list[T]:
+    return list(await asyncio.gather(*processes))
+
+
+async def gather_custom_with_semaphore(
+    processes: Sequence[Coroutine[Any, Any, T]], max_concurrency: int
+) -> list[T]:
+    semaphore = asyncio.Semaphore(max_concurrency)
+
+    async def _run_with_semaphore(process: Coroutine[Any, Any, T]) -> T:
+        async with semaphore:
+            return await process
+
+    return list(await asyncio.gather(*(_run_with_semaphore(process) for process in processes)))
 
 
 class SingleRun(BaseModel):
