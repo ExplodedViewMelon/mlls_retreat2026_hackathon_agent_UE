@@ -100,5 +100,11 @@ if __name__ == "__main__":
     # pprint.pprint(ds[0])
 
     # make object
-    questions = get_n_questions_distractor()
-    pprint.pprint(questions[0])
+    questions = get_n_questions_distractor(n_titles=3)
+
+    for question in questions:
+        total = 0
+        for sentences in question.different_sentences:
+            total += len(sentences.sentences)
+
+        print(total)
