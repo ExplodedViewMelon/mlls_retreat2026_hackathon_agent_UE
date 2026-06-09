@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from hackathon.wikipedia_client import WikipediaArticle, get_wikipedia_content
 
 
-class Question(BaseModel):
+class Question_fullwiki(BaseModel):
     id: str
     question: str
     answer: str
@@ -16,30 +16,71 @@ class Question(BaseModel):
     wikipedia_articles: list[WikipediaArticle]
 
 
-def get_n_questions(
+class Sentences(BaseModel):
+    title: str
+    sentences: list[str]
+
+
+class Question_distractor(BaseModel):
+    id: str
+    question: str
+    answer: str
+    level: str
+    type: str
+    different_sentences: list[Sentences]
+
+
+def get_n_questions_fullwiki(
     n_questions: int = 10,
     n_titles: int = 2,
     level: str = "hard",
     type: Literal["bridge", "comparison"] = "bridge",
-    subname: Literal["fullwiki", "distractor"] = "distractor",
-) -> list[Question]:
-    ds = load_dataset("hotpotqa/hotpot_qa", subname, split="train")
+) -> list[Question_fullwiki]:
+    ds = load_dataset("hotpotqa/hotpot_qa", "fullwiki", split="train")
     ds = ds.filter(
         lambda x: x["level"] == level
         and x["type"] == type
         and len(x["context"]["title"]) == n_titles
     ).select(range(n_questions))
-    to_return: list[Question] = []
+    to_return: list[Question_fullwiki] = []
     for q in ds:
         articles = [get_wikipedia_content(title) for title in q["context"]["title"]]
 
-        question_object = Question(
+        question_object = Question_fullwiki(
             id=q["id"],
             question=q["question"],
             answer=q["answer"],
             level=q["level"],
             type=q["type"],
             wikipedia_articles=articles,
+        )
+
+        to_return.append(question_object)
+
+    return to_return
+
+
+def get_n_questions_distractor(
+    n_questions: int = 10,
+    n_titles: int = 2,
+    level: str = "hard",
+    type: Literal["bridge", "comparison"] = "bridge",
+) -> list[Question_distractor]:
+    ds = load_dataset("hotpotqa/hotpot_qa", "distractor", split="train")
+    ds = ds.filter(
+        lambda x: x["level"] == level
+        and x["type"] == type
+        and len(x["context"]["title"]) == n_titles
+    ).select(range(n_questions))
+    to_return: list[Question_distractor] = []
+    for q in ds:
+        question_object = Question_distractor(
+            id=q["id"],
+            question=q["question"],
+            answer=q["answer"],
+            level=q["level"],
+            type=q["type"],
+            different_sentences=q["context"]["sentences"],
         )
 
         to_return.append(question_object)
@@ -54,5 +95,5 @@ if __name__ == "__main__":
     # pprint.pprint(ds[0])
 
     # make object
-    questions = get_n_questions()
+    questions = get_n_questions_distractor()
     pprint.pprint(questions[0])
