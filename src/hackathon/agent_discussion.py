@@ -51,6 +51,9 @@ TOPIC = dataset_row.question
 
 async def main() -> None:
     print("Question:", dataset_row.question)
+    print("Articles:")
+    for article in dataset_row.wikipedia_articles:
+        print(f"{article.title} ({article.url})")
 
     print("=" * 60)
     print("ROUND-ROBIN DISCUSSION")
