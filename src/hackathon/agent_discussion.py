@@ -1,4 +1,5 @@
 import asyncio
+import re
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
@@ -8,6 +9,13 @@ from autogen_agentchat.ui import Console
 from hackathon.autogen_client import get_client
 from hackathon.hotpotqa import get_n_questions
 
+
+def normalize_wikipedia_title(name: str) -> str:
+    title_normalized = re.sub(r"[^A-Za-z0-9_-]", "_", name.replace(" ", "_"))
+    title_normalized = re.sub(r"^[^A-Za-z_]+", "_", title_normalized)
+    return title_normalized
+
+
 client = get_client()
 
 # get 1 question
@@ -16,10 +24,7 @@ dataset_row = hotpotqa_dataset_simple[3]  # 0 is impossible
 
 agents = []
 for article in dataset_row.wikipedia_articles:
-    import re
-
-    article_title_normalized = re.sub(r"[^A-Za-z0-9_-]", "_", article.title.replace(" ", "_"))
-    article_title_normalized = re.sub(r"^[^A-Za-z_]+", "_", article_title_normalized)
+    article_title_normalized = normalize_wikipedia_title(article.title)
 
     agent = AssistantAgent(
         name=f"expert_{article_title_normalized}",
