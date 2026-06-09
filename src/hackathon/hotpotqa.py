@@ -1,4 +1,5 @@
 import pprint
+from typing import Literal
 
 from datasets import load_dataset
 from pydantic import BaseModel
@@ -16,9 +17,13 @@ class Question(BaseModel):
 
 
 def get_n_questions(
-    n_questions: int = 10, n_titles: int = 2, level: str = "easy", type: str = "bridge"
+    n_questions: int = 10,
+    n_titles: int = 2,
+    level: str = "hard",
+    type: Literal["bridge", "comparison"] = "bridge",
+    subname: Literal["fullwiki", "distractor"] = "distractor",
 ) -> list[Question]:
-    ds = load_dataset("hotpotqa/hotpot_qa", "fullwiki", split="train")
+    ds = load_dataset("hotpotqa/hotpot_qa", subname, split="train")
     ds = ds.filter(
         lambda x: x["level"] == level
         and x["type"] == type
