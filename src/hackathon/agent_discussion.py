@@ -52,6 +52,9 @@ async def process_question(
     ##### Initialize agents
 
     TOPIC = dataset_row.question
+
+    n_agents = len(dataset_row.different_sentences)
+
     agents = []
     for sentences in dataset_row.different_sentences:
         article_title_normalized = normalize_wikipedia_title(sentences.title)
@@ -70,6 +73,8 @@ async def process_question(
                 "You can trust the other agents. "
                 "When your group has clearly reached a shared conclusion, "
                 "write the answer following the word CONSENSUS. "
+                f"You are in total {n_agents} agents. "
+                "Make sure to hear everyone's opinion before submitting the answer."
                 f"\nAttached wikipedia article:\n\n{sentences.title}\n {sentences.sentences}"  # noqa
             ),
         )
