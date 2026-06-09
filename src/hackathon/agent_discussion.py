@@ -106,8 +106,8 @@ async def main() -> None:
     ):
         # process
         try:
-            run_results = await process_question(client, dataset_row, do_stream=do_stream)
-            single_runs.append(run_results)
+            run_result = await process_question(client, dataset_row, do_stream=do_stream)
+            single_runs.append(run_result)
         except Exception:
             pass
 
