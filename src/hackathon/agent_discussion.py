@@ -109,9 +109,10 @@ async def process_question(
     summary_agent = AssistantAgent("summary_agent", client)
     answer_summary_raw = await summary_agent.run(
         task=(
-            "Summarize the following answer as ultra compact keywords i.e. < 10 words. "
+            "Extract the answer from the following conversation. "
+            "Answer should be detailed while being less than 10 words. "
             f"Question: {dataset_row.question}. "
-            f"Answer to summarize: {last_message} "
+            f"Answer to summarize: {messages_str} "
         )
     )
     answer_summary = answer_summary_raw.messages[-1].to_text()
