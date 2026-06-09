@@ -169,18 +169,26 @@ async def run_benchmark() -> None:
     hotpotqa_dataset_simple = hotpotqa_dataset_simple[:]
     do_stream = False
 
-    single_runs: list[SingleRun] = []
+    single_runs_futures: list[CoroutineType[Any, Any, SingleRun]] = []
 
     print("Starting benchmark")
-    for dataset_row in tqdm.tqdm(
-        hotpotqa_dataset_simple, desc="Benchmarking", total=len(hotpotqa_dataset_simple)
-    ):
-        # process
-        try:
-            run_result = await process_question(client, dataset_row, do_stream=do_stream)
-            single_runs.append(run_result)
-        except Exception:
-            pass
+
+    # # process sequentially
+    # for dataset_row in tqdm(
+    #     hotpotqa_dataset_simple, desc="Benchmarking", total=len(hotpotqa_dataset_simple)
+    # ):
+
+    # try:
+    #     run_result = await process_question(client, dataset_row, do_stream=do_stream)
+    #     single_runs.append(run_result)
+    # except Exception:
+    #     pass
+
+    # proces concurrently
+    for dataset_row in hotpotqa_dataset_simple:
+        single_runs_futures.append(process_question(dataset_row, do_stream=do_stream))
+
+    single_runs = await gather_custom_with_semaphore(single_runs_futures, 10)
 
     benchmark_result = BenchmarkResult(single_runs=single_runs)
     with open("benchmark_result.json", "w", encoding="utf-8") as f:
