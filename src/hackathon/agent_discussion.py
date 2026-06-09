@@ -2,6 +2,7 @@ import asyncio
 import re
 from typing import Sequence
 
+import tqdm
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
 from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
@@ -85,38 +86,63 @@ async def process_question(
     return SingleRun(dataset_row=dataset_row, messages=messages, answer_summary=answer_summary)
 
 
+class BenchmarkResult(BaseModel):
+    single_runs: list[SingleRun]
+
+
 async def main() -> None:
     client = get_client()
 
     # get 1 data row
-    hotpotqa_dataset_simple = get_n_questions_distractor(n_questions=10, n_titles=2)
-    dataset_row = hotpotqa_dataset_simple[2]
-
+    hotpotqa_dataset_simple = get_n_questions_distractor(n_titles=2)
+    hotpotqa_dataset_simple = hotpotqa_dataset_simple[:]
     do_stream = False
 
-    # process
-    run_results = await process_question(client, dataset_row, do_stream=do_stream)
+    single_runs: list[SingleRun] = []
 
-    # display
-    print("Question:", dataset_row.question)
-    print("Articles:")
-    for sentences in dataset_row.different_sentences:
-        print(f"{sentences.title}")
+    print("Starting benchmark")
+    for dataset_row in tqdm.tqdm(
+        hotpotqa_dataset_simple, desc="Benchmarking", total=len(hotpotqa_dataset_simple)
+    ):
+        # process
+        try:
+            run_results = await process_question(client, dataset_row, do_stream=do_stream)
+            single_runs.append(run_results)
+        except Exception:
+            pass
 
-    if do_stream:
-        print("=" * 60)
-        print("ROUND-ROBIN DISCUSSION")
-        print(f"Topic: {dataset_row.question}")
-        print("=" * 60)
-        print()
+    benchmark_result = BenchmarkResult(single_runs=single_runs)
+    with open("benchmark_result.json", "w", encoding="utf-8") as f:
+        f.write(benchmark_result.model_dump_json(indent=2))
 
-        print()
-        print("=" * 60)
-        print("Discussion ended.")
+    print(benchmark_result)
 
-    print("Predicted answer summary:", run_results.answer_summary)
-    print("Question:", dataset_row.question)
-    print("Ground truth:", dataset_row.answer)
+    print("BENCHMARK SUMMARY:")
+    for single_run in single_runs:
+        print("ID:", single_run.dataset_row.id)
+        print("Pred:", single_run.answer_summary)
+        print("Ground truth:", single_run.dataset_row.answer)
+        print("----")
+    # # display
+    # print("Question:", dataset_row.question)
+    # print("Articles:")
+    # for sentences in dataset_row.different_sentences:
+    #     print(f"{sentences.title}")
+
+    # if do_stream:
+    #     print("=" * 60)
+    #     print("ROUND-ROBIN DISCUSSION")
+    #     print(f"Topic: {dataset_row.question}")
+    #     print("=" * 60)
+    #     print()
+
+    #     print()
+    #     print("=" * 60)
+    #     print("Discussion ended.")
+
+    # print("Predicted answer summary:", run_results.answer_summary)
+    # print("Question:", dataset_row.question)
+    # print("Ground truth:", dataset_row.answer)
 
 
 if __name__ == "__main__":
