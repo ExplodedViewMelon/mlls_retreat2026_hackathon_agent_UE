@@ -129,11 +129,30 @@ class BenchmarkResult(BaseModel):
     single_runs: list[SingleRun]
 
 
-async def main() -> None:
+async def single_run() -> None:
     client = get_client()
 
     # get 1 data row
-    hotpotqa_dataset_simple = get_n_questions_distractor(n_titles=2)
+    hotpotqa_dataset_simple = get_n_questions_distractor(n_titles=4)
+    dataset_row = hotpotqa_dataset_simple[1]
+
+    do_stream = True
+    run_result = await process_question(client, dataset_row, do_stream=do_stream)
+
+    print("#" * 10)
+    print("Titles:")
+    for sentences in dataset_row.different_sentences:
+        print(" -", sentences.title)
+    print("Question:", run_result.dataset_row.question)
+    print("Ground truth:", run_result.dataset_row.answer)
+    print("Prediction summary:", run_result.answer_summary)
+
+
+async def run_benchmark() -> None:
+    client = get_client()
+
+    # get 1 data row
+    hotpotqa_dataset_simple = get_n_questions_distractor(n_titles=4)
     hotpotqa_dataset_simple = hotpotqa_dataset_simple[:]
     do_stream = False
 
