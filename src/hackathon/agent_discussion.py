@@ -61,9 +61,7 @@ class SingleRun(BaseModel):
     answer_summary: str
 
 
-async def process_question(
-    client, dataset_row: Question_distractor, do_stream: bool = True
-) -> SingleRun:
+async def process_question(dataset_row: Question_distractor, do_stream: bool = True) -> SingleRun:
     ##### Initialize agents
 
     TOPIC = dataset_row.question
@@ -76,7 +74,7 @@ async def process_question(
 
         agent = AssistantAgent(
             name=f"expert_{article_title_normalized}",
-            model_client=client,
+            model_client=get_client(),
             system_message=(
                 "You are an expert on a particular wikipedia subject. "
                 "You will find the relevant wikipedia material attached. "
@@ -121,7 +119,7 @@ async def process_question(
 
     # last_message = messages[-1].content  # type: ignore
 
-    summary_agent = AssistantAgent("summary_agent", client)
+    summary_agent = AssistantAgent("summary_agent", get_client())
     answer_summary_raw = await summary_agent.run(
         task=(
             "Extract the answer from the following conversation. "
@@ -152,7 +150,7 @@ async def single_run() -> None:
     dataset_row = hotpotqa_dataset_simple[1]
 
     do_stream = True
-    run_result = await process_question(client, dataset_row, do_stream=do_stream)
+    run_result = await process_question(dataset_row, do_stream=do_stream)
 
     print("#" * 10)
     print("Titles:")
