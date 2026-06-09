@@ -61,7 +61,6 @@ def get_n_questions_fullwiki(
 
 
 def get_n_questions_distractor(
-    n_questions: int = 10,
     n_titles: int = 2,
     level: str = "hard",
     type: Literal["bridge", "comparison"] = "bridge",
@@ -71,7 +70,7 @@ def get_n_questions_distractor(
         lambda x: x["level"] == level
         and x["type"] == type
         and len(x["context"]["title"]) == n_titles
-    ).select(range(n_questions))
+    )
     to_return: list[Question_distractor] = []
     for q in ds:
         different_sentences = [
