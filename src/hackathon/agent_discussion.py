@@ -15,8 +15,13 @@ from hackathon.hotpotqa import Question_distractor, get_n_questions_distractor
 
 
 def normalize_wikipedia_title(name: str) -> str:
-    title_normalized = re.sub(r"[^A-Za-z0-9_-]", "_", name.replace(" ", "_"))
-    title_normalized = re.sub(r"^[^A-Za-z_]+", "_", title_normalized)
+    title_normalized = re.sub(r"\W", "_", name, flags=re.ASCII)
+    title_normalized = re.sub(r"^(?=\d)", "_", title_normalized)
+    title_normalized = re.sub(r"_+", "_", title_normalized).strip("_")
+    if not title_normalized:
+        return "_"
+    if title_normalized[0].isdigit():
+        title_normalized = f"_{title_normalized}"
     return title_normalized
 
 
