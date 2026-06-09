@@ -178,6 +178,7 @@ async def run_benchmark() -> None:
     print("BENCHMARK SUMMARY:")
     for single_run in single_runs:
         print("ID:", single_run.dataset_row.id)
+        print("Question:", single_run.dataset_row.question)
         print("Pred:", single_run.answer_summary)
         print("Ground truth:", single_run.dataset_row.answer)
         print("----")
