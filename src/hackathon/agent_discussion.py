@@ -165,8 +165,8 @@ async def run_benchmark() -> None:
     client = get_client()
 
     # get 1 data row
-    hotpotqa_dataset_simple = get_n_questions_distractor(n_titles=4)
-    hotpotqa_dataset_simple = hotpotqa_dataset_simple[:]
+    hotpotqa_dataset_simple = get_n_questions_distractor()
+    hotpotqa_dataset_simple = hotpotqa_dataset_simple[:10]
     do_stream = False
 
     single_runs_futures: list[CoroutineType[Any, Any, SingleRun]] = []
