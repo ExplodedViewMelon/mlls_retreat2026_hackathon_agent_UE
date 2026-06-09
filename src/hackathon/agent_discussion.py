@@ -117,7 +117,12 @@ async def process_question(
     )
     answer_summary = answer_summary_raw.messages[-1].to_text()
 
-    return SingleRun(dataset_row=dataset_row, messages=messages, answer_summary=answer_summary)
+    return SingleRun(
+        dataset_row=dataset_row,
+        conversation=messages_str,
+        messages_raw=messages,
+        answer_summary=answer_summary,
+    )
 
 
 class BenchmarkResult(BaseModel):
