@@ -49,8 +49,9 @@ class LikelihoodEvaluationJudge(LikelihoodEvaluation):
         client = get_client()
 
         evaluate_answer_system_prompt = (
-            "Consider the attached reasoning of multiple agents communicating their partial information."
-            " Evaluate the likelihood of the answer being correct."
+            "Consider the attached reasoning of multiple agents "
+            "communicating their partial information. "
+            "Evaluate the likelihood of the answer being correct."
         )
         evaluate_agent = AssistantAgent(
             "evaluate_agent",
