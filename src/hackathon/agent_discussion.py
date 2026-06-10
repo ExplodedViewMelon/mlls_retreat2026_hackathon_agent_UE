@@ -90,27 +90,28 @@ async def process_question(dataset_row: Question_distractor, do_stream: bool = T
     agents = []
     for sentences in dataset_row.different_sentences:
         article_title_normalized = normalize_wikipedia_title(sentences.title)
-
-        agent = AssistantAgent(
-            name=f"expert_{article_title_normalized}",
-            model_client=client,
-            system_message=(
-                "You are an expert on a particular wikipedia subject. "
-                "You will find the relevant wikipedia material attached. "
-                "You will help a group of agents answer a question. "
-                "You are the ONLY agent with the attached information. "
-                "The other agents have a DIFFERENT article attached. "
-                "Therefore each member of the group is an expert on a different subject. "
-                "You will have to share information to reach an answer. "
-                "You can trust the other agents. "
-                "When your group has clearly reached a shared conclusion, "
-                "write the answer following the word CONSENSUS. "
-                f"You are in total {n_agents} agents. "
-                "Make sure to hear everyone's opinion before submitting the answer."
-                f"\nAttached wikipedia article:\n\n{sentences.title}\n {sentences.sentences}"  # noqa
-            ),
-        )
-        agents.append(agent)
+        for i, sentence in enumerate(sentences):
+            agent = AssistantAgent(
+                name=f"expert_{article_title_normalized}_{i}",
+                model_client=client,
+                system_message=(
+                    "You are an expert on a particular wikipedia subject. "
+                    "You will find the relevant wikipedia material attached. "
+                    "You will help a group of agents answer a question. "
+                    "You are the ONLY agent with the attached information. "
+                    "The other agents have DIFFERENT information attached. "
+                    "Multiple agents may have information about the same subject. "
+                    "Therefore each member of the group is an expert on a different subject. "
+                    "You will have to share information to reach an answer. "
+                    "You can trust the other agents. "
+                    "When your group has clearly reached a shared conclusion, "
+                    "write the answer following the word CONSENSUS. "
+                    f"You are in total {n_agents} agents. "
+                    "Make sure to hear everyone's opinion before submitting the answer."
+                    f"\nAttached wikipedia article:\n\n{sentences.title}\n {sentence}"  # noqa
+                ),
+            )
+            agents.append(agent)
 
     termination = TextMentionTermination("CONSENSUS") | MaxMessageTermination(max_messages=12)
 
