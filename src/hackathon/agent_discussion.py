@@ -1,7 +1,7 @@
 import asyncio
 import re
 from abc import ABC, abstractmethod
-from typing import Sequence, cast
+from typing import cast
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
@@ -19,7 +19,6 @@ client = get_client()
 class AgentDiscussion(ABC):
     class Discussion(BaseModel):
         messages_str: str
-        messages_raw: Sequence[BaseChatMessage]
 
     @staticmethod
     @abstractmethod
@@ -127,7 +126,7 @@ class TurnTakingFlat(AgentDiscussion):
             messages_str += f"{agent}:\n"
             messages_str += f"{content}\n\n"
 
-        return AgentDiscussion.Discussion(messages_str=messages_str, messages_raw=messages)
+        return AgentDiscussion.Discussion(messages_str=messages_str)
 
 
 async def single_run() -> None:
