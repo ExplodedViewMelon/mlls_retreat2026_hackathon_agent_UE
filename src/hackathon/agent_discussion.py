@@ -1,7 +1,7 @@
 import asyncio
 import re
 from types import CoroutineType
-from typing import Any, Coroutine, Sequence, TypeVar
+from typing import Any, Coroutine, Sequence, TypeVar, cast
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
@@ -127,7 +127,7 @@ async def process_question(dataset_row: Question_distractor, do_stream: bool = T
     else:
         result = await group_chat.run(task=TOPIC)
 
-    messages = result.messages
+    messages = cast(list[BaseChatMessage], result.messages)
 
     messages_str = ""
     for message in messages:
