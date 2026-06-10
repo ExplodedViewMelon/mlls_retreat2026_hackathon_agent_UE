@@ -12,6 +12,7 @@ dependencies = [
     "autogen-ext[openai]>=0.7.5",
     "datasets>=5.0.0",
     "matplotlib>=3.10.9",
+    "pydantic-settings>=2.14.1",
     "wikipedia>=1.4.0",
 ]
 
