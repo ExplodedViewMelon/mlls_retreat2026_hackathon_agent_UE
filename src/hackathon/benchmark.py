@@ -5,7 +5,12 @@ from autogen_agentchat.agents import AssistantAgent
 from pydantic import BaseModel
 from tqdm.asyncio import tqdm as atqdm
 
-from hackathon.agent_discussion import AgentDiscussion, TurnTakingFlat, llm_extract_answer
+from hackathon.agent_discussion import (
+    AgentDiscussion,
+    Discussion,
+    llm_extract_answer,
+    turn_taking_discussion,
+)
 from hackathon.autogen_client import get_client
 from hackathon.hotpot_evalaute_f1 import f1_score
 from hackathon.hotpotqa import Question_distractor, get_n_questions_distractor
@@ -66,7 +71,7 @@ async def llm_evaluate_likelihood(messages_str: str, question: str) -> float:
 
 class SingleRun(BaseModel):
     dataset_row: Question_distractor
-    discussion: AgentDiscussion.Discussion
+    discussion: Discussion
     answer_summary: str
     likelihood: float
 
@@ -81,7 +86,7 @@ async def process_question_pipeline(
     likelihood_evaluation: LikelihoodEvaluation,
     do_stream: bool,
 ) -> SingleRun:
-    discussion = await agents_discussion.perform_discussion(question_entry, do_stream=do_stream)
+    discussion = await agents_discussion(question_entry, do_stream=do_stream)
     answer = await llm_extract_answer(discussion.messages_str, question_entry.question)
     likelihood = await likelihood_evaluation(discussion.messages_str, question_entry.question)
 
@@ -146,7 +151,7 @@ if __name__ == "__main__":
     use_n_datapoints = 10
 
     dataset = get_n_questions_distractor()[:use_n_datapoints]
-    agent_discussion = TurnTakingFlat()
+    agent_discussion = turn_taking_discussion
     likelihood_evaluation = llm_evaluate_likelihood
     benchmark_future = run_benchmark(
         dataset, agent_discussion, likelihood_evaluation, do_stream, n_concurrent_processes
