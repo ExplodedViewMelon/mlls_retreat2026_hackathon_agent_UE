@@ -3,7 +3,6 @@ import re
 from types import CoroutineType
 from typing import Any, Coroutine, Sequence, TypeVar
 
-import tqdm
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
 from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
@@ -28,10 +27,6 @@ def normalize_wikipedia_title(name: str) -> str:
 
 
 T = TypeVar("T")
-
-
-async def gather_custom(processes: Sequence[Coroutine[Any, Any, T]]) -> list[T]:
-    return list(await asyncio.gather(*processes))
 
 
 async def gather_custom_with_semaphore(
@@ -67,14 +62,14 @@ async def process_question(dataset_row: Question_distractor, do_stream: bool = T
     TOPIC = dataset_row.question
 
     n_agents = len(dataset_row.different_sentences)
-
+    client = get_client()
     agents = []
     for sentences in dataset_row.different_sentences:
         article_title_normalized = normalize_wikipedia_title(sentences.title)
 
         agent = AssistantAgent(
             name=f"expert_{article_title_normalized}",
-            model_client=get_client(),
+            model_client=client,
             system_message=(
                 "You are an expert on a particular wikipedia subject. "
                 "You will find the relevant wikipedia material attached. "
@@ -119,7 +114,7 @@ async def process_question(dataset_row: Question_distractor, do_stream: bool = T
 
     # last_message = messages[-1].content  # type: ignore
 
-    summary_agent = AssistantAgent("summary_agent", get_client())
+    summary_agent = AssistantAgent("summary_agent", client)
     answer_summary_raw = await summary_agent.run(
         task=(
             "Extract the answer from the following conversation. "
@@ -143,8 +138,6 @@ class BenchmarkResult(BaseModel):
 
 
 async def single_run() -> None:
-    client = get_client()
-
     # get 1 data row
     hotpotqa_dataset_simple = get_n_questions_distractor(n_titles=4)
     dataset_row = hotpotqa_dataset_simple[1]
@@ -162,8 +155,6 @@ async def single_run() -> None:
 
 
 async def run_benchmark() -> None:
-    client = get_client()
-
     # get 1 data row
     hotpotqa_dataset_simple = get_n_questions_distractor()
     hotpotqa_dataset_simple = hotpotqa_dataset_simple[:10]
@@ -226,4 +217,5 @@ async def run_benchmark() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_benchmark())
+    # asyncio.run(single_run())
