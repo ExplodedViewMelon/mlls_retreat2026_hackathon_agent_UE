@@ -138,16 +138,7 @@ async def process_question(dataset_row: Question_distractor, do_stream: bool = T
 
     # last_message = messages[-1].content  # type: ignore
 
-    summary_agent = AssistantAgent("summary_agent", client)
-    answer_summary_raw = await summary_agent.run(
-        task=(
-            "Extract the answer from the following conversation. "
-            "Answer should be detailed while being less than 10 words. "
-            f"Question: {dataset_row.question}. "
-            f"Answer to summarize: {messages_str} "
-        )
-    )
-    answer_summary = answer_summary_raw.messages[-1].to_text()
+    answer_summary = await llm_extract_answer(client, messages_str, dataset_row.question)
 
     return SingleRun(
         dataset_row=dataset_row,
