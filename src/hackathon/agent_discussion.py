@@ -5,7 +5,7 @@ from typing import Any, Coroutine, Sequence, TypeVar
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
-from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
+from autogen_agentchat.messages import BaseChatMessage
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.ui import Console
 from pydantic import BaseModel
@@ -76,7 +76,7 @@ async def gather_custom_with_semaphore(
 class SingleRun(BaseModel):
     dataset_row: Question_distractor
     conversation: str
-    messages_raw: Sequence[BaseAgentEvent | BaseChatMessage]
+    messages_raw: Sequence[BaseChatMessage]
     answer_summary: str
 
 
