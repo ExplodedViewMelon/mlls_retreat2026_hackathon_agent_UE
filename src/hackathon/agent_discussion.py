@@ -1,7 +1,6 @@
 import asyncio
 import re
-from abc import ABC, abstractmethod
-from typing import cast
+from typing import Protocol, cast
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
@@ -16,15 +15,13 @@ from hackathon.hotpotqa import Question_distractor, get_n_questions_distractor
 client = get_client()
 
 
-class AgentDiscussion(ABC):
-    class Discussion(BaseModel):
-        messages_str: str
+class Discussion(BaseModel):
+    messages_str: str
 
+
+class AgentDiscussion(Protocol):
     @staticmethod
-    @abstractmethod
-    async def perform_discussion(
-        question_entry: Question_distractor, do_stream: bool
-    ) -> Discussion: ...
+    async def __call__(question_entry: Question_distractor, do_stream: bool) -> Discussion: ...
 
 
 async def llm_extract_answer(conversation: str, question: str) -> str:
@@ -63,70 +60,66 @@ def normalize_wikipedia_title(name: str) -> str:
     return title_normalized
 
 
-class TurnTakingFlat(AgentDiscussion):
-    @staticmethod
-    async def perform_discussion(
-        question_entry: Question_distractor, do_stream: bool
-    ) -> AgentDiscussion.Discussion:
-        ##### Initialize agents
+async def turn_taking_discussion(question_entry: Question_distractor, do_stream: bool) -> Discussion:
+    ##### Initialize agents
 
-        TOPIC = question_entry.question
+    TOPIC = question_entry.question
 
-        n_agents = len(question_entry.different_sentences)
-        client = get_client()
-        agents = []
-        for sentences in question_entry.different_sentences:
-            article_title_normalized = normalize_wikipedia_title(sentences.title)
-            for i, sentence in enumerate(sentences):
-                agent = AssistantAgent(
-                    name=f"expert_{article_title_normalized}_{i}",
-                    model_client=client,
-                    system_message=(
-                        "You are an expert on a particular wikipedia subject. "
-                        "You will find the relevant wikipedia material attached. "
-                        "You will help a group of agents answer a question. "
-                        "You are the ONLY agent with the attached information. "
-                        "The other agents have DIFFERENT information attached. "
-                        "Multiple agents may have information about the same subject. "
-                        "Therefore each member of the group is an expert on a different subject. "
-                        "You will have to share information to reach an answer. "
-                        "You can trust the other agents. "
-                        "When your group has clearly reached a shared conclusion, "
-                        "write the answer following the word CONSENSUS. "
-                        "Only write the word CONSENSUS when the task is over. "
-                        "All agents share this system prompt. "
-                        f"You are in total {n_agents} agents. "
-                        "Make sure to hear everyone's opinion before submitting the answer."
-                        f"\nAttached wikipedia article:\n\n{sentences.title}\n {sentence}"  # noqa
-                    ),
-                )
-                agents.append(agent)
+    n_agents = len(question_entry.different_sentences)
+    client = get_client()
+    agents = []
+    for sentences in question_entry.different_sentences:
+        article_title_normalized = normalize_wikipedia_title(sentences.title)
+        for i, sentence in enumerate(sentences):
+            agent = AssistantAgent(
+                name=f"expert_{article_title_normalized}_{i}",
+                model_client=client,
+                system_message=(
+                    "You are an expert on a particular wikipedia subject. "
+                    "You will find the relevant wikipedia material attached. "
+                    "You will help a group of agents answer a question. "
+                    "You are the ONLY agent with the attached information. "
+                    "The other agents have DIFFERENT information attached. "
+                    "Multiple agents may have information about the same subject. "
+                    "Therefore each member of the group is an expert on a different subject. "
+                    "You will have to share information to reach an answer. "
+                    "You can trust the other agents. "
+                    "When your group has clearly reached a shared conclusion, "
+                    "write the answer following the word CONSENSUS. "
+                    "Only write the word CONSENSUS when the task is over. "
+                    "All agents share this system prompt. "
+                    f"You are in total {n_agents} agents. "
+                    "Make sure to hear everyone's opinion before submitting the answer."
+                    f"\nAttached wikipedia article:\n\n{sentences.title}\n {sentence}"  # noqa
+                ),
+            )
+            agents.append(agent)
 
-        termination = TextMentionTermination("CONSENSUS") | MaxMessageTermination(max_messages=12)
+    termination = TextMentionTermination("CONSENSUS") | MaxMessageTermination(max_messages=12)
 
-        group_chat = RoundRobinGroupChat(
-            participants=agents,
-            termination_condition=termination,
-        )
+    group_chat = RoundRobinGroupChat(
+        participants=agents,
+        termination_condition=termination,
+    )
 
-        ##### Start discussion
-        if do_stream:
-            group_chat_stream = group_chat.run_stream(task=TOPIC)
-            result = await Console(group_chat_stream)
-        else:
-            result = await group_chat.run(task=TOPIC)
+    ##### Start discussion
+    if do_stream:
+        group_chat_stream = group_chat.run_stream(task=TOPIC)
+        result = await Console(group_chat_stream)
+    else:
+        result = await group_chat.run(task=TOPIC)
 
-        messages = cast(list[BaseChatMessage], result.messages)
+    messages = cast(list[BaseChatMessage], result.messages)
 
-        messages_str = ""
-        for message in messages:
-            agent = message.source
-            content = message.content  # type: ignore
+    messages_str = ""
+    for message in messages:
+        agent = message.source
+        content = message.content  # type: ignore
 
-            messages_str += f"{agent}:\n"
-            messages_str += f"{content}\n\n"
+        messages_str += f"{agent}:\n"
+        messages_str += f"{content}\n\n"
 
-        return AgentDiscussion.Discussion(messages_str=messages_str)
+    return Discussion(messages_str=messages_str)
 
 
 async def single_run() -> None:
@@ -135,7 +128,7 @@ async def single_run() -> None:
     question_entry = hotpotqa_dataset_simple[1]
 
     do_stream = True
-    run_result = await TurnTakingFlat.perform_discussion(question_entry, do_stream=do_stream)
+    run_result = await turn_taking_discussion(question_entry, do_stream=do_stream)
 
     answer = await llm_extract_answer(run_result.messages_str, question_entry.question)
 
