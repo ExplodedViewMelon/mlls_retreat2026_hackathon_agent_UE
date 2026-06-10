@@ -12,6 +12,7 @@ def get_client():
 
     client = OpenAIChatCompletionClient(
         model="google/gemma-4-26b-a4b",
+        # model="alibaba/qwen-3.6-35b-a3b",
         api_key=api_key,
         base_url=base_url,
         model_info=ModelInfo(
