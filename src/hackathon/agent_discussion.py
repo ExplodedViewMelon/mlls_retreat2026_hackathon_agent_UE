@@ -30,9 +30,11 @@ class AgentDiscussion(ABC):
 
 async def llm_extract_answer(conversation: str, question: str) -> str:
     extractor_system_prompt = (
-        "You are an answer extraction specialist. Given a question and a longer discussion or expert answer, extract the single most direct and concise answer.\n"
+        "You are an answer extraction specialist. Given a question and a longer discussion"
+        " or expert answer, extract the single most direct and concise answer.\n"
         "Rules:\n"
-        "- Extract only the core answer — a word, name, number, short phrase, or at most 1–2 sentences\n"
+        "- Extract only the core answer "
+        " — a word, name, number, short phrase, or at most 1–2 sentences\n"
         "- Do not include reasoning, explanation, or context unless it is essential to the answer\n"
         "- If the answer is a proper noun (person, place, organization), return just that noun\n"
         "- If the answer is a yes/no, return just 'Yes' or 'No'\n"
