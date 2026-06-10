@@ -25,6 +25,9 @@ class AgentDiscussion(Protocol):
 
 
 async def llm_extract_answer(conversation: str, question: str) -> str:
+    class ExtractedAnswer(BaseModel):
+        answer: str
+
     extractor_system_prompt = (
         "You are an answer extraction specialist. Given a question and a longer discussion"
         " or expert answer, extract the single most direct and concise answer.\n"
@@ -42,11 +45,16 @@ async def llm_extract_answer(conversation: str, question: str) -> str:
         "Question: Michael Jordan won six NBA championships, all with which team?\n"
         "Answer: The Chicago Bulls\n"
     )
-    summary_agent = AssistantAgent("summary_agent", client, system_message=extractor_system_prompt)
+    summary_agent = AssistantAgent(
+        "summary_agent",
+        client,
+        system_message=extractor_system_prompt,
+        output_content_type=ExtractedAnswer,
+    )
     answer_summary_raw = await summary_agent.run(
         task=(f"Question: {question}. Conversation to extract answer from: {conversation} ")
     )
-    return answer_summary_raw.messages[-1].to_text()
+    return answer_summary_raw.messages[-1].content.answer  # type: ignore
 
 
 def normalize_wikipedia_title(name: str) -> str:
