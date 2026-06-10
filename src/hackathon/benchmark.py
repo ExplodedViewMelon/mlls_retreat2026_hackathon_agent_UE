@@ -12,7 +12,7 @@ from hackathon.agent_discussion import (
     turn_taking_discussion,
 )
 from hackathon.autogen_client import get_client
-from hackathon.hotpot_evalaute_f1 import f1_score
+from hackathon.hotpot_evaluate_f1 import f1_score
 from hackathon.hotpotqa import Question_distractor, get_n_questions_distractor
 
 T = TypeVar("T")
