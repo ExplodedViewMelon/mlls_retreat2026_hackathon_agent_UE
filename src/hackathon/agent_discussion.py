@@ -15,6 +15,29 @@ from hackathon.autogen_client import get_client
 from hackathon.hotpotqa import Question_distractor, get_n_questions_distractor
 
 
+async def llm_extract_answer(client, conversation: str, question: str) -> str:
+    extractor_system_prompt = (
+        "You are an answer extraction specialist. Given a question and a longer discussion or expert answer, extract the single most direct and concise answer.\n"
+        "Rules:\n"
+        "- Extract only the core answer — a word, name, number, short phrase, or at most 1–2 sentences\n"
+        "- Do not include reasoning, explanation, or context unless it is essential to the answer\n"
+        "- If the answer is a proper noun (person, place, organization), return just that noun\n"
+        "- If the answer is a yes/no, return just 'Yes' or 'No'\n"
+        "- Match the style of these examples:\n"
+        "Question: What is the capital city of Australia?\n"
+        "Answer: Canberra\n"
+        "Question: The novel 'Frankenstein' was written by which author?\n"
+        "Answer: Mary Shelley\n"
+        "Question: Michael Jordan won six NBA championships, all with which team?\n"
+        "Answer: The Chicago Bulls\n"
+    )
+    summary_agent = AssistantAgent("summary_agent", client, system_message=extractor_system_prompt)
+    answer_summary_raw = await summary_agent.run(
+        task=(f"Question: {question}. Conversation to extract answer from: {conversation} ")
+    )
+    return answer_summary_raw.messages[-1].to_text()
+
+
 def normalize_wikipedia_title(name: str) -> str:
     title_normalized = re.sub(r"\W", "_", name, flags=re.ASCII)
     title_normalized = re.sub(r"^(?=\d)", "_", title_normalized)
