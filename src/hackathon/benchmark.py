@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Coroutine, Sequence, TypeVar
 
 from autogen_agentchat.agents import AssistantAgent
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from tqdm.asyncio import tqdm as atqdm
 
 from hackathon.agent_discussion import AgentDiscussion, TurnTakingFlat, llm_extract_answer
@@ -44,9 +44,7 @@ class LikelihoodEvaluationJudge(LikelihoodEvaluation):
     @staticmethod
     async def perform_evaluation(messages_str: str, question: str) -> float:
         class AnswerEvaluation(BaseModel):
-            likelihood: float = Field(
-                ..., description="Likelihood of the answer being correct. Should be between 0 and 1"
-            )  # noqa
+            likelihood: float
 
         client = get_client()
 
@@ -144,9 +142,13 @@ def print_benchmark_details(benchmark: BenchmarkResult) -> None:
 
 
 if __name__ == "__main__":
+    import warnings
+
+    warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+
     do_stream = False
-    n_concurrent_processes = 10
-    use_n_datapoints = 10
+    n_concurrent_processes = 20
+    use_n_datapoints = 100
 
     dataset = get_n_questions_distractor()[:use_n_datapoints]
     agent_discussion = TurnTakingFlat()
