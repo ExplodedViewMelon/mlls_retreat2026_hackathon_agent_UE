@@ -3,41 +3,13 @@ from abc import ABC, abstractmethod
 from typing import Any, Coroutine, Sequence, TypeVar
 
 from autogen_agentchat.agents import AssistantAgent
-from autogen_ext.models.openai import OpenAIChatCompletionClient
 from pydantic import BaseModel, Field
 from tqdm.asyncio import tqdm as atqdm
 
-from hackathon.agent_discussion import AgentDiscussion, llm_extract_answer
+from hackathon.agent_discussion import AgentDiscussion, TurnTakingFlat, llm_extract_answer
+from hackathon.autogen_client import get_client
 from hackathon.hotpot_evalaute_f1 import f1_score
 from hackathon.hotpotqa import Question_distractor, get_n_questions_distractor
-
-
-async def llm_evaluate_answer(
-    client: OpenAIChatCompletionClient, conversation: str, question: str
-) -> float:
-    class AnswerEvaluation(BaseModel):
-        likelihood: float = Field(
-            ..., description="Likelihood of the answer being correct. Should be between 0 and 1"
-        )  # noqa
-
-    evaluate_answer_system_prompt = (
-        "Consider the attached reasoning of multiple agents communicating their partial information."
-        " Evaluate the likelihood of the answer being correct."
-    )
-    evaluate_agent = AssistantAgent(
-        "evaluate_agent",
-        client,
-        system_message=evaluate_answer_system_prompt,
-        output_content_type=AnswerEvaluation,
-    )
-    answer_summary_raw = await evaluate_agent.run(
-        task=(
-            f"Question: {question}. Conversation to evaluate: {conversation}. "
-            "Return a structured completion as a JSON string with a 'likelihood' field"
-        )
-    )
-    return answer_summary_raw.messages[-1].content.likelihood  # type: ignore
-
 
 T = TypeVar("T")
 
@@ -63,8 +35,38 @@ async def gather_custom_with_semaphore(
 
 
 class LikelihoodEvaluation(ABC):
+    @staticmethod
     @abstractmethod
-    async def perform_evaluation(self, messages_str: str, question: str) -> float: ...
+    async def perform_evaluation(messages_str: str, question: str) -> float: ...
+
+
+class LikelihoodEvaluationJudge(LikelihoodEvaluation):
+    @staticmethod
+    async def perform_evaluation(messages_str: str, question: str) -> float:
+        class AnswerEvaluation(BaseModel):
+            likelihood: float = Field(
+                ..., description="Likelihood of the answer being correct. Should be between 0 and 1"
+            )  # noqa
+
+        client = get_client()
+
+        evaluate_answer_system_prompt = (
+            "Consider the attached reasoning of multiple agents communicating their partial information."
+            " Evaluate the likelihood of the answer being correct."
+        )
+        evaluate_agent = AssistantAgent(
+            "evaluate_agent",
+            client,
+            system_message=evaluate_answer_system_prompt,
+            output_content_type=AnswerEvaluation,
+        )
+        answer_summary_raw = await evaluate_agent.run(
+            task=(
+                f"Question: {question}. Conversation to evaluate: {messages_str}. "
+                "Return a structured completion as a JSON string with a 'likelihood' field"
+            )
+        )
+        return answer_summary_raw.messages[-1].content.likelihood  # type: ignore
 
 
 class SingleRun(BaseModel):
@@ -142,8 +144,18 @@ def print_benchmark_details(benchmark: BenchmarkResult) -> None:
 
 
 if __name__ == "__main__":
-    hotpotqa_dataset_simple = get_n_questions_distractor()
-    hotpotqa_dataset_simple = hotpotqa_dataset_simple[:10]
+    do_stream = False
+    n_concurrent_processes = 10
+    use_n_datapoints = 10
+
+    dataset = get_n_questions_distractor()[:use_n_datapoints]
+    agent_discussion = TurnTakingFlat()
+    likelihood_evaluation = LikelihoodEvaluationJudge()
+    benchmark_future = run_benchmark(
+        dataset, agent_discussion, likelihood_evaluation, do_stream, n_concurrent_processes
+    )
+
+    asyncio.run(benchmark_future)
 
     # asyncio.run(run_benchmark())
     # asyncio.run(single_run())
