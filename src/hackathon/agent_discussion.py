@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from tqdm.asyncio import tqdm as atqdm
 
 from hackathon.autogen_client import get_client
+from hackathon.hotpot_evalaute_f1 import f1_score
 from hackathon.hotpotqa import Question_distractor, get_n_questions_distractor
 
 
@@ -212,11 +213,19 @@ async def run_benchmark() -> None:
 
     print("BENCHMARK SUMMARY:")
     for single_run in single_runs:
+        prediction = single_run.answer_summary
+        ground_truth = single_run.dataset_row.answer
+        f1, precision, recall = f1_score(prediction, ground_truth)
+
         print("ID:", single_run.dataset_row.id)
         print("Question:", single_run.dataset_row.question)
         print("Pred:", single_run.answer_summary)
         print("Ground truth:", single_run.dataset_row.answer)
-        print("----")
+        print("-")
+        print(f"F1: {f1:.4f}")
+        print(f"Precision: {precision:.4f}")
+        print(f"Recall: {recall:.4f}")
+        print("#" * 10)
     # # display
     # print("Question:", dataset_row.question)
     # print("Articles:")
