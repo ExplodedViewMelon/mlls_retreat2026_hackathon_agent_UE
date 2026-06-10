@@ -11,6 +11,7 @@ dependencies = [
     "autogen-agentchat>=0.7.5",
     "autogen-ext[openai]>=0.7.5",
     "datasets>=5.0.0",
+    "matplotlib>=3.10.9",
     "wikipedia>=1.4.0",
 ]
 
