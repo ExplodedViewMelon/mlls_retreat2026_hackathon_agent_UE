@@ -1,7 +1,7 @@
 import asyncio
 import re
-from types import CoroutineType
-from typing import Any, Coroutine, Sequence, TypeVar, cast
+from abc import ABC, abstractmethod
+from typing import Sequence, cast
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
@@ -9,14 +9,26 @@ from autogen_agentchat.messages import BaseChatMessage
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.ui import Console
 from pydantic import BaseModel
-from tqdm.asyncio import tqdm as atqdm
 
 from hackathon.autogen_client import get_client
-from hackathon.hotpot_evalaute_f1 import f1_score
 from hackathon.hotpotqa import Question_distractor, get_n_questions_distractor
 
+client = get_client()
 
-async def llm_extract_answer(client, conversation: str, question: str) -> str:
+
+class AgentDiscussion(ABC):
+    class Discussion(BaseModel):
+        messages_str: str
+        messages_raw: Sequence[BaseChatMessage]
+
+    @staticmethod
+    @abstractmethod
+    async def perform_discussion(
+        question_entry: Question_distractor, do_stream: bool
+    ) -> Discussion: ...
+
+
+async def llm_extract_answer(conversation: str, question: str) -> str:
     extractor_system_prompt = (
         "You are an answer extraction specialist. Given a question and a longer discussion or expert answer, extract the single most direct and concise answer.\n"
         "Rules:\n"
@@ -50,174 +62,90 @@ def normalize_wikipedia_title(name: str) -> str:
     return title_normalized
 
 
-T = TypeVar("T")
+class TurnTakingFlat(AgentDiscussion):
+    @staticmethod
+    async def perform_discussion(
+        question_entry: Question_distractor, do_stream: bool
+    ) -> AgentDiscussion.Discussion:
+        ##### Initialize agents
 
+        TOPIC = question_entry.question
 
-async def gather_custom_with_semaphore(
-    processes: Sequence[Coroutine[Any, Any, T]], max_concurrency: int
-) -> list[T]:
-    semaphore = asyncio.Semaphore(max_concurrency)
+        n_agents = len(question_entry.different_sentences)
+        client = get_client()
+        agents = []
+        for sentences in question_entry.different_sentences:
+            article_title_normalized = normalize_wikipedia_title(sentences.title)
+            for i, sentence in enumerate(sentences):
+                agent = AssistantAgent(
+                    name=f"expert_{article_title_normalized}_{i}",
+                    model_client=client,
+                    system_message=(
+                        "You are an expert on a particular wikipedia subject. "
+                        "You will find the relevant wikipedia material attached. "
+                        "You will help a group of agents answer a question. "
+                        "You are the ONLY agent with the attached information. "
+                        "The other agents have DIFFERENT information attached. "
+                        "Multiple agents may have information about the same subject. "
+                        "Therefore each member of the group is an expert on a different subject. "
+                        "You will have to share information to reach an answer. "
+                        "You can trust the other agents. "
+                        "When your group has clearly reached a shared conclusion, "
+                        "write the answer following the word CONSENSUS. "
+                        "Only write the word CONSENSUS when the task is over. "
+                        "All agents share this system prompt. "
+                        f"You are in total {n_agents} agents. "
+                        "Make sure to hear everyone's opinion before submitting the answer."
+                        f"\nAttached wikipedia article:\n\n{sentences.title}\n {sentence}"  # noqa
+                    ),
+                )
+                agents.append(agent)
 
-    n_processes = len(processes)
+        termination = TextMentionTermination("CONSENSUS") | MaxMessageTermination(max_messages=12)
 
-    async def _run_with_semaphore(process: Coroutine[Any, Any, T]) -> T:
-        async with semaphore:
-            return await process
-
-    return list(
-        await atqdm.gather(
-            *(_run_with_semaphore(process) for process in processes),
-            desc="Running benchmark",
-            total=n_processes,
+        group_chat = RoundRobinGroupChat(
+            participants=agents,
+            termination_condition=termination,
         )
-    )
 
+        ##### Start discussion
+        if do_stream:
+            group_chat_stream = group_chat.run_stream(task=TOPIC)
+            result = await Console(group_chat_stream)
+        else:
+            result = await group_chat.run(task=TOPIC)
 
-class SingleRun(BaseModel):
-    dataset_row: Question_distractor
-    conversation: str
-    messages_raw: Sequence[BaseChatMessage]
-    answer_summary: str
+        messages = cast(list[BaseChatMessage], result.messages)
 
+        messages_str = ""
+        for message in messages:
+            agent = message.source
+            content = message.content  # type: ignore
 
-async def process_question(dataset_row: Question_distractor, do_stream: bool = True) -> SingleRun:
-    ##### Initialize agents
+            messages_str += f"{agent}:\n"
+            messages_str += f"{content}\n\n"
 
-    TOPIC = dataset_row.question
-
-    n_agents = len(dataset_row.different_sentences)
-    client = get_client()
-    agents = []
-    for sentences in dataset_row.different_sentences:
-        article_title_normalized = normalize_wikipedia_title(sentences.title)
-        for i, sentence in enumerate(sentences):
-            agent = AssistantAgent(
-                name=f"expert_{article_title_normalized}_{i}",
-                model_client=client,
-                system_message=(
-                    "You are an expert on a particular wikipedia subject. "
-                    "You will find the relevant wikipedia material attached. "
-                    "You will help a group of agents answer a question. "
-                    "You are the ONLY agent with the attached information. "
-                    "The other agents have DIFFERENT information attached. "
-                    "Multiple agents may have information about the same subject. "
-                    "Therefore each member of the group is an expert on a different subject. "
-                    "You will have to share information to reach an answer. "
-                    "You can trust the other agents. "
-                    "When your group has clearly reached a shared conclusion, "
-                    "write the answer following the word CONSENSUS. "
-                    f"You are in total {n_agents} agents. "
-                    "Make sure to hear everyone's opinion before submitting the answer."
-                    f"\nAttached wikipedia article:\n\n{sentences.title}\n {sentence}"  # noqa
-                ),
-            )
-            agents.append(agent)
-
-    termination = TextMentionTermination("CONSENSUS") | MaxMessageTermination(max_messages=12)
-
-    group_chat = RoundRobinGroupChat(
-        participants=agents,
-        termination_condition=termination,
-    )
-
-    ##### Start discussion
-    if do_stream:
-        group_chat_stream = group_chat.run_stream(task=TOPIC)
-        result = await Console(group_chat_stream)
-    else:
-        result = await group_chat.run(task=TOPIC)
-
-    messages = cast(list[BaseChatMessage], result.messages)
-
-    messages_str = ""
-    for message in messages:
-        agent = message.source
-        content = message.content  # type: ignore
-
-        messages_str += f"{agent}:\n"
-        messages_str += f"{content}\n\n"
-
-    # last_message = messages[-1].content  # type: ignore
-
-    answer_summary = await llm_extract_answer(client, messages_str, dataset_row.question)
-
-    return SingleRun(
-        dataset_row=dataset_row,
-        conversation=messages_str,
-        messages_raw=messages,
-        answer_summary=answer_summary,
-    )
-
-
-class BenchmarkResult(BaseModel):
-    single_runs: list[SingleRun]
+        return AgentDiscussion.Discussion(messages_str=messages_str, messages_raw=messages)
 
 
 async def single_run() -> None:
     # get 1 data row
     hotpotqa_dataset_simple = get_n_questions_distractor(n_titles=4)
-    dataset_row = hotpotqa_dataset_simple[1]
+    question_entry = hotpotqa_dataset_simple[1]
 
     do_stream = True
-    run_result = await process_question(dataset_row, do_stream=do_stream)
+    run_result = await TurnTakingFlat.perform_discussion(question_entry, do_stream=do_stream)
+
+    answer = await llm_extract_answer(run_result.messages_str, question_entry.question)
 
     print("#" * 10)
     print("Titles:")
-    for sentences in dataset_row.different_sentences:
+    for sentences in question_entry.different_sentences:
         print(" -", sentences.title)
-    print("Question:", run_result.dataset_row.question)
-    print("Ground truth:", run_result.dataset_row.answer)
-    print("Prediction summary:", run_result.answer_summary)
+    print("Question:", question_entry.question)
+    print("Ground truth:", question_entry.answer)
+    print("Prediction summary:", answer)
 
-
-async def run_benchmark() -> None:
-    # get 1 data row
-    hotpotqa_dataset_simple = get_n_questions_distractor()
-    hotpotqa_dataset_simple = hotpotqa_dataset_simple[:10]
-    do_stream = False
-
-    single_runs_futures: list[CoroutineType[Any, Any, SingleRun]] = []
-
-    print("Starting benchmark")
-
-    # # process sequentially
-    # for dataset_row in tqdm(
-    #     hotpotqa_dataset_simple, desc="Benchmarking", total=len(hotpotqa_dataset_simple)
-    # ):
-
-    # try:
-    #     run_result = await process_question(client, dataset_row, do_stream=do_stream)
-    #     single_runs.append(run_result)
-    # except Exception:
-    #     pass
-
-    # proces concurrently
-    for dataset_row in hotpotqa_dataset_simple:
-        single_runs_futures.append(process_question(dataset_row, do_stream=do_stream))
-
-    single_runs = await gather_custom_with_semaphore(single_runs_futures, 10)
-
-    benchmark_result = BenchmarkResult(single_runs=single_runs)
-    with open("benchmark_result.json", "w", encoding="utf-8") as f:
-        f.write(benchmark_result.model_dump_json(indent=2))
-
-    print(benchmark_result)
-
-    print("BENCHMARK SUMMARY:")
-    for single_run in single_runs:
-        prediction = single_run.answer_summary
-        ground_truth = single_run.dataset_row.answer
-        f1, precision, recall = f1_score(prediction, ground_truth)
-
-        print("ID:", single_run.dataset_row.id)
-        print("Question:", single_run.dataset_row.question)
-        print("Pred:", single_run.answer_summary)
-        print("Ground truth:", single_run.dataset_row.answer)
-        print("-")
-        print(f"F1: {f1:.4f}")
-        print(f"Precision: {precision:.4f}")
-        print(f"Recall: {recall:.4f}")
-        print("#" * 10)
     # # display
     # print("Question:", dataset_row.question)
     # print("Articles:")
@@ -241,5 +169,4 @@ async def run_benchmark() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(run_benchmark())
-    # asyncio.run(single_run())
+    asyncio.run(single_run())

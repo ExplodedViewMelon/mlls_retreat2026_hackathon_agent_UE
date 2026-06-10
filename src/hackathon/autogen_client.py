@@ -6,7 +6,7 @@ from autogen_core.models import ModelInfo
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 
-def get_client():
+def get_client() -> OpenAIChatCompletionClient:
     base_url = "https://hackerton2026.compute.dtu.dk/v1"
     api_key = "REDACTED"
 
