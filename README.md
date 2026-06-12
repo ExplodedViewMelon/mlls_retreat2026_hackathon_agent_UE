@@ -5,12 +5,12 @@ The hackathon revolved around multi-agent systems and error estimation. In the c
 Lastly an agent extracts the answer to better match the formatting of the dataset and provides a simple error estimation based on the conversation of the agents. 
 Finally a token-based F1 metric and an Exact Match metric (provided by the dataset-host) are calculated. A mean aggregate of these metrics are displayed along a calibration curve of the F1 score vs estimated likelihood (using the F1 score for calibration is slightly unconventional but serves as an estimate).
 
-An .env with the field '''llm_token = ...''' is required to run the agents. The setup is currently using a locally hosted 'google/gemma-4-26b-a4b' model by this can be changed inside '''autogen_client.py'''
+An .env with the field `llm_token = ...` is required to run the agents. The setup is currently using a locally hosted 'google/gemma-4-26b-a4b' model by this can be changed inside `autogen_client.py`
 
 The whole pipeline looks like the following:
 
-Running and saving the benchmark: '''uv run src/hackathon/benchmark.py'''
-Analyzing last run benchmark: '''uv run src/hackathon/analyze_benchmark.py'''
+Running and saving the benchmark: `uv run src/hackathon/benchmark.py`
+Analyzing last run benchmark: `uv run src/hackathon/analyze_benchmark.py`
 
 ## Possible roadmap:
 
