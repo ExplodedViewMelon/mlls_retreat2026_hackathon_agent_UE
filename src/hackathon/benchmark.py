@@ -148,7 +148,7 @@ if __name__ == "__main__":
 
     do_stream = False
     n_concurrent_processes = 10
-    use_n_datapoints = 10
+    use_n_datapoints = 100
 
     dataset = get_n_questions_distractor()[:use_n_datapoints]
     agent_discussion = turn_taking_discussion
