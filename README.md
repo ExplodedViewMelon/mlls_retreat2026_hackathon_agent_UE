@@ -1,4 +1,5 @@
 ## The result of a few hours of hackathon at the MLLS Retreat 2026
+### As part of the project, no AI tools were used in development.
 
 The HotPotQA subset used are the `distractor` setting in which you are given a question and a set of text passages retrieved from wikipedia. Only a few of the passages are relevant to answering the questions and the task is thus to filter the irrelevant when answering.
 The hackathon revolved around multi-agent systems and error estimation. In the current setup, each text passage is being provided to an agent. All agents then take turns presenting their infomation and pieces together their partial information. Once an answer is agreed on, the agents terminate the discussion by outputting `CONCENSUS`.
